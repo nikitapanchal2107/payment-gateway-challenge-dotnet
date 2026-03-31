@@ -22,12 +22,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-//builder.Services.AddSingleton<PaymentsRepository>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
 
 builder.Services.Configure<PaymentGatewayOptions>(builder.Configuration.GetSection("PaymentGateway"));
 
-builder.Services.AddHttpClient<IBankClient, BankClient>((sp,client) => {
+builder.Services.AddHttpClient<IBankClient, BankClient>((sp, client) =>
+{
     var baseUrl = sp.GetRequiredService<IOptions<PaymentGatewayOptions>>().Value.BankSimulatorBaseUrl;
     client.BaseAddress = new Uri(baseUrl);
 })
@@ -35,7 +35,7 @@ builder.Services.AddHttpClient<IBankClient, BankClient>((sp,client) => {
     p.WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt))));
 
 builder.Services.AddSingleton<IPaymentRepository, PaymentRepository>();
-builder.Services.AddScoped<PaymentRequestValidator>();
+builder.Services.AddSingleton<PaymentRequestValidator>();
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()

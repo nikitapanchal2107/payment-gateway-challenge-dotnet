@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using PaymentGateway.Application.DTOs;
 
-using PaymentGateway.Api.Models;
-using PaymentGateway.Application.DTOs;
-using PaymentGateway.Infrastructure.Client;
 
 namespace PaymentGateway.Application.Interfaces
 {
     public interface IBankClient
     {
-        Task<BankPaymentResponse> Process(PaymentRequestDto request);
+        Task<BankAuthorizationResult> Process(PaymentRequestDto request);
+
+        public class BankAuthorizationResult
+        {
+            public bool Authorized { get; set; }
+            public string? AuthorizationCode { get; set; }
+        }
     }
 }

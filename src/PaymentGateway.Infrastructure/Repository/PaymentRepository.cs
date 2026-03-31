@@ -10,7 +10,7 @@ namespace PaymentGateway.Infrastructure.Repository
 {
     public class PaymentRepository : IPaymentRepository
     {
-        private readonly ConcurrentDictionary<Guid, Payment> _payments = new();
+        private readonly Dictionary<Guid, Payment> _payments = new();
 
         public Task SaveAsync(Payment payment)
         {

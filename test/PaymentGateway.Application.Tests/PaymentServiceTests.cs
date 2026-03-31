@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
-
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options; // <-- Add this using directive
+﻿using Microsoft.Extensions.Logging;
 
 using Moq;
 
@@ -15,7 +9,8 @@ using PaymentGateway.Application.Options;
 using PaymentGateway.Application.Services;
 using PaymentGateway.Application.Validator;
 using PaymentGateway.Domain.Entities;
-using PaymentGateway.Infrastructure.Client;
+
+using static PaymentGateway.Application.Interfaces.IBankClient;
 
 namespace PaymentGateway.Application.Tests
 {
@@ -53,7 +48,7 @@ namespace PaymentGateway.Application.Tests
         {
             // Arrange
             var request = CreateValidRequest();
-            var bankResponse = new BankPaymentResponse
+            var bankResponse = new BankAuthorizationResult
             {
                 Authorized = true,
                 AuthorizationCode = "AUTH123"
@@ -80,7 +75,7 @@ namespace PaymentGateway.Application.Tests
         {
             // Arrange
             var request = CreateValidRequest();
-            var bankResponse = new BankPaymentResponse { Authorized = false };
+            var bankResponse = new BankAuthorizationResult { Authorized = false };
 
             _validator.Validate(request);
             _bankClientMock.Setup(b => b.Process(request)).ReturnsAsync(bankResponse);
@@ -101,7 +96,7 @@ namespace PaymentGateway.Application.Tests
             // Arrange
             var request = CreateValidRequest();
             request.CardNumber = "1234567890123456";
-            var bankResponse = new BankPaymentResponse { Authorized = true };
+            var bankResponse = new BankAuthorizationResult { Authorized = true };
 
             _validator.Validate(request);
             _bankClientMock.Setup(b => b.Process(request)).ReturnsAsync(bankResponse);
