@@ -24,8 +24,10 @@ public class PaymentsController : Controller
     }
 
     [HttpPost]
-    public async Task<ActionResult<PaymentResponseDto>> Create(PaymentRequestDto request)
+    public async Task<ActionResult<PaymentResponseDto?>> Create(PaymentRequestDto request)
     {
+        if (request == null)
+            return BadRequest(new { error = "Request body cannot be null" });
         var result = await _service.ProcessAsync(request);
         return Ok(result);
     }

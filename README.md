@@ -44,14 +44,29 @@ This section outlines the architectural decisions, assumptions, and rationale be
 
 ### Clean Architecture
 
-**Assumption:** Clean separation of concerns is essential for maintainability using SOLID principles.  
+**Assumption:** Clean separation of concerns is essential for maintainability.  
 **Decision:** Implemented a 4‑layer architecture:
-- API Layer  
-- Application Layer  
-- Domain Layer  
-- Infrastructure Layer  
+- API Layer - Controllers, middleware
+- Application Layer - Business logic, services, DTOs, validators 
+- Domain Layer - Core entities, enums, Core business rules
+- Infrastructure Layer  - External integrations (bank client, repository) 
 
-**Rationale:** Enables independent testing and easier maintenance.
+**Rationale:** Payment Gateway Domain: 
+- Complex validation rules (expiry, currency, CVV) 
+- External dependencies (bank API) 
+- Security critical 
+- High testability requirement (financial accuracy) 
+
+- Future-Proofing: 
+- Easy to add features (refunds, fraud detection) 
+- Easy to swap implementations (different banks, databases) 
+- Easy to test each layer independently 
+- Clear boundaries for team collaboration 
+
+- Production Readiness: 
+- Follows industry standards (SOLID principles) 
+- Easy to onboard new team members 
+- Clear separation of concerns 
 
 ---
 
@@ -124,7 +139,7 @@ This section outlines the architectural decisions, assumptions, and rationale be
 
 ---
 
-### ]Bank Integration
+### Bank Integration
 
 - Last digit **odd** → Authorized  
 - Last digit **even** → Declined  
