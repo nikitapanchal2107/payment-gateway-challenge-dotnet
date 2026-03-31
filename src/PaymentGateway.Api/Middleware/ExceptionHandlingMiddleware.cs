@@ -34,26 +34,32 @@ public class ExceptionHandlingMiddleware
     {
         var (statusCode, title, detail) = exception switch
         {
-            ValidationException validationEx => (HttpStatusCode.BadRequest, "Invalid data", validationEx.Message),
-            KeyNotFoundException => (HttpStatusCode.NotFound, "Payment not found", "The payment you are looking for does not exist."),
-            HttpRequestException httpEx when httpEx.StatusCode == HttpStatusCode.BadRequest =>
-               (HttpStatusCode.BadRequest, "Bank rejected the request", "The bank rejected the request due to invalid data"),
+            ValidationException validationEx =>
+                (HttpStatusCode.BadRequest, "Validation Failed", validationEx.Message),
+
+            ArgumentNullException argNullEx =>  // ? Handle null arguments
+                (HttpStatusCode.BadRequest, "Invalid Request", $"Required parameter is missing: {argNullEx.ParamName}"),
+
+            NullReferenceException =>  // ? Catch unexpected nulls
+                (HttpStatusCode.InternalServerError, "Internal Error", "An unexpected null reference occurred"),
+
+            KeyNotFoundException =>
+                (HttpStatusCode.NotFound, "Not Found", "Payment not found"),
 
             HttpRequestException httpEx when httpEx.StatusCode == HttpStatusCode.ServiceUnavailable =>
-                (HttpStatusCode.ServiceUnavailable, "Bank service unavailable", "The bank service is temporarily unavailable. Please try again later."),
+                (HttpStatusCode.ServiceUnavailable, "Service Unavailable", "Bank service is temporarily unavailable"),
 
             HttpRequestException =>
-                (HttpStatusCode.BadGateway, "Bank service currently unavailable", "The bank service is currently unavailable. Please try again later."),
+                (HttpStatusCode.BadGateway, "Bad Gateway", "Bank service is currently unavailable"),
 
             TaskCanceledException =>
-                (HttpStatusCode.GatewayTimeout, "Bank service request timed out", "The request to the bank service timed out."),
-            _ => (HttpStatusCode.InternalServerError, "Internal server error", "An unexpected error occurred on the server.")
+                (HttpStatusCode.GatewayTimeout, "Gateway Timeout", "Bank service request timed out"),
+
+            _ =>
+                (HttpStatusCode.InternalServerError, "Internal Server Error", "An unexpected error occurred")
         };
 
-        _logger.LogError(exception, "Error occurred: {Message}", exception.Message);
-
-        context.Response.ContentType = "application/problem+json";
-        context.Response.StatusCode = (int)statusCode;
+        _logger.LogError(exception, "Error occurred: {Title} - {Detail}", title, detail);
 
         var problemDetails = new ProblemDetails
         {
@@ -65,9 +71,10 @@ public class ExceptionHandlingMiddleware
 
         if (exception is ValidationException)
         {
-            problemDetails.Extensions["paymentStatus"] = "Rejected";
+            problemDetails.Extensions["paymentStatus"] = PaymentStatus.Rejected.ToString();
         }
 
+        context.Response.StatusCode = (int)statusCode;
         await context.Response.WriteAsJsonAsync(problemDetails);
     }
 }
