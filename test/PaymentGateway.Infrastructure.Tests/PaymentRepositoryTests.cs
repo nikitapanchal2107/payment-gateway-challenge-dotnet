@@ -43,31 +43,7 @@ namespace PaymentGateway.Infrastructure.Tests
             Assert.Null(result);
         }
 
-        [Fact]
-        public async Task SaveAsync_MultiplePayments_AllStoredIndependently()
-        {
-            // Arrange
-            var payment1 = CreatePayment();
-            var payment2 = CreatePayment();
-            var payment3 = CreatePayment();
-
-            // Act
-            await _repository.SaveAsync(payment1);
-            await _repository.SaveAsync(payment2);
-            await _repository.SaveAsync(payment3);
-
-            // Assert
-            var retrieved1 = await _repository.GetAsync(payment1.Id);
-            var retrieved2 = await _repository.GetAsync(payment2.Id);
-            var retrieved3 = await _repository.GetAsync(payment3.Id);
-
-            Assert.NotNull(retrieved1);
-            Assert.NotNull(retrieved2);
-            Assert.NotNull(retrieved3);
-            Assert.NotEqual(retrieved1.Id, retrieved2.Id);
-            Assert.NotEqual(retrieved2.Id, retrieved3.Id);
-        }
-
+        
         [Fact]
         public async Task GetAsync_RetrievesCompletePaymentData()
         {

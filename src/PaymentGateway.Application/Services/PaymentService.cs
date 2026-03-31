@@ -5,7 +5,6 @@ using PaymentGateway.Application.DTOs;
 using PaymentGateway.Application.Interfaces;
 using PaymentGateway.Application.Validator;
 using PaymentGateway.Domain.Entities;
-using PaymentGateway.Infrastructure.Client;
 
 
 namespace PaymentGateway.Application.Services

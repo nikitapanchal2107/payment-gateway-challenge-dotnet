@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
 
 using PaymentGateway.Api.Models;
 
@@ -31,41 +32,42 @@ public class ExceptionHandlingMiddleware
 
     private async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
-        var (statusCode, message) = exception switch
+        var (statusCode, title, detail) = exception switch
         {
-            ValidationException validationEx => (HttpStatusCode.BadRequest, validationEx.Message),
-            KeyNotFoundException => (HttpStatusCode.NotFound, "Payment not found"),
+            ValidationException validationEx => (HttpStatusCode.BadRequest, "Invalid data", validationEx.Message),
+            KeyNotFoundException => (HttpStatusCode.NotFound, "Payment not found", "The payment you are looking for does not exist."),
             HttpRequestException httpEx when httpEx.StatusCode == HttpStatusCode.BadRequest =>
-               (HttpStatusCode.BadRequest, "Bank rejected the request due to invalid data"),
+               (HttpStatusCode.BadRequest, "Bank rejected the request", "The bank rejected the request due to invalid data"),
 
             HttpRequestException httpEx when httpEx.StatusCode == HttpStatusCode.ServiceUnavailable =>
-                (HttpStatusCode.ServiceUnavailable, "Bank service is temporarily unavailable"),
+                (HttpStatusCode.ServiceUnavailable, "Bank service unavailable", "The bank service is temporarily unavailable. Please try again later."),
 
             HttpRequestException =>
-                (HttpStatusCode.BadGateway, "Bank service is currently unavailable"),
+                (HttpStatusCode.BadGateway, "Bank service currently unavailable", "The bank service is currently unavailable. Please try again later."),
 
             TaskCanceledException =>
-                (HttpStatusCode.GatewayTimeout, "Bank service request timed out"),
-            _ => (HttpStatusCode.InternalServerError, "An unexpected error occurred")
+                (HttpStatusCode.GatewayTimeout, "Bank service request timed out", "The request to the bank service timed out."),
+            _ => (HttpStatusCode.InternalServerError, "Internal server error", "An unexpected error occurred on the server.")
         };
 
         _logger.LogError(exception, "Error occurred: {Message}", exception.Message);
 
-        context.Response.ContentType = "application/json";
+        context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = (int)statusCode;
 
-        var response = new
+        var problemDetails = new ProblemDetails
         {
-            message,
-            statusCode = (int)statusCode,
-            status = PaymentStatus.Rejected.ToString(),
+            Status = (int)statusCode,
+            Title = title,
+            Detail = detail,
+            Instance = context.Request.Path
         };
 
-        var json = JsonSerializer.Serialize(response, new JsonSerializerOptions
+        if (exception is ValidationException)
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        });
+            problemDetails.Extensions["paymentStatus"] = "Rejected";
+        }
 
-        await context.Response.WriteAsync(json);
+        await context.Response.WriteAsJsonAsync(problemDetails);
     }
 }

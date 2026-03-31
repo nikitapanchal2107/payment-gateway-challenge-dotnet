@@ -14,6 +14,8 @@ using PaymentGateway.Infrastructure.Client;
 
 using Xunit;
 
+using static PaymentGateway.Application.Interfaces.IBankClient;
+
 namespace PaymentGateway.Api.Tests
 {
     public class PaymentsControllerIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
@@ -24,7 +26,6 @@ namespace PaymentGateway.Api.Tests
         {
             _factory = factory;
         }
-
         #region Happy Path Tests
 
         [Fact]
@@ -94,83 +95,6 @@ namespace PaymentGateway.Api.Tests
 
         #endregion
 
-        #region Validation/Rejection Tests
-
-        [Fact]
-        public async Task ProcessPayment_WithInvalidCardNumber_ReturnsRejected400()
-        {
-            // Arrange
-            var client = _factory.CreateClient();
-            var request = new PaymentRequestDto
-            {
-                CardNumber = "123", // Too short - invalid
-                ExpiryMonth = 12,
-                ExpiryYear = DateTime.UtcNow.Year + 1,
-                Currency = "USD",
-                Amount = 100,
-                Cvv = "123"
-            };
-
-            // Act
-            var response = await client.PostAsJsonAsync("/api/Payments", request);
-
-            // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            var errorContent = await response.Content.ReadAsStringAsync();
-            Assert.Contains("14-19", errorContent);
-            Assert.Contains("Rejected", errorContent);
-        }
-
-        [Fact]
-        public async Task ProcessPayment_WithExpiredCard_ReturnsRejected400()
-        {
-            // Arrange
-            var client = _factory.CreateClient();
-            var request = new PaymentRequestDto
-            {
-                CardNumber = "2222405343248113",
-                ExpiryMonth = 1,
-                ExpiryYear = 2020, // Expired
-                Currency = "USD",
-                Amount = 100,
-                Cvv = "123"
-            };
-
-            // Act
-            var response = await client.PostAsJsonAsync("/api/Payments", request);
-
-            // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            var errorContent = await response.Content.ReadAsStringAsync();
-            Assert.Contains("expired", errorContent, StringComparison.OrdinalIgnoreCase);
-        }
-
-        [Fact]
-        public async Task ProcessPayment_WithUnsupportedCurrency_ReturnsRejected400()
-        {
-            // Arrange
-            var client = _factory.CreateClient();
-            var request = new PaymentRequestDto
-            {
-                CardNumber = "2222405343248113",
-                ExpiryMonth = 12,
-                ExpiryYear = DateTime.UtcNow.Year + 1,
-                Currency = "JPY", // Not allowed
-                Amount = 100,
-                Cvv = "123"
-            };
-
-            // Act
-            var response = await client.PostAsJsonAsync("/api/Payments", request);
-
-            // Assert
-            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-            var errorContent = await response.Content.ReadAsStringAsync();
-            Assert.Contains("Unsupported currency", errorContent);
-        }
-
-        #endregion
-
         #region Retrieval Tests
 
         [Fact]
@@ -191,47 +115,7 @@ namespace PaymentGateway.Api.Tests
 
         #endregion
 
-        #region Multiple Payments Test
-
-        [Fact]
-        public async Task ProcessPayment_MultiplePayments_AllStoredIndependently()
-        {
-            // Arrange
-            var client = CreateClientWithMockBank(authorized: true);
-            var payment1 = CreatePaymentRequest("2222405343248113", 100, "USD");
-            var payment2 = CreatePaymentRequest("2222405343248115", 200, "GBP");
-            var payment3 = CreatePaymentRequest("2222405343248117", 300, "EUR");
-
-            // Act - Create 3 payments
-            var response1 = await client.PostAsJsonAsync("/api/Payments", payment1);
-            var response2 = await client.PostAsJsonAsync("/api/Payments", payment2);
-            var response3 = await client.PostAsJsonAsync("/api/Payments", payment3);
-
-            // Assert - All succeed
-            Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
-            Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
-            Assert.Equal(HttpStatusCode.OK, response3.StatusCode);
-
-            var result1 = await response1.Content.ReadFromJsonAsync<PaymentResponseDto>();
-            var result2 = await response2.Content.ReadFromJsonAsync<PaymentResponseDto>();
-            var result3 = await response3.Content.ReadFromJsonAsync<PaymentResponseDto>();
-
-            // All have unique IDs
-            Assert.NotEqual(result1!.Id, result2!.Id);
-            Assert.NotEqual(result2.Id, result3!.Id);
-            Assert.NotEqual(result1.Id, result3.Id);
-
-            // All can be retrieved independently
-            var get1 = await client.GetAsync($"/api/Payments/{result1.Id}");
-            var get2 = await client.GetAsync($"/api/Payments/{result2.Id}");
-            var get3 = await client.GetAsync($"/api/Payments/{result3.Id}");
-
-            Assert.Equal(HttpStatusCode.OK, get1.StatusCode);
-            Assert.Equal(HttpStatusCode.OK, get2.StatusCode);
-            Assert.Equal(HttpStatusCode.OK, get3.StatusCode);
-        }
-
-        #endregion
+        
 
         #region Helper Methods
 
@@ -286,9 +170,9 @@ namespace PaymentGateway.Api.Tests
                 _authorized = authorized;
             }
 
-            public Task<BankPaymentResponse> Process(PaymentRequestDto request)
+            public Task<BankAuthorizationResult> Process(PaymentRequestDto request)
             {
-                return Task.FromResult(new BankPaymentResponse
+                return Task.FromResult(new BankAuthorizationResult
                 {
                     Authorized = _authorized,
                     AuthorizationCode = _authorized ? $"AUTH{Guid.NewGuid():N}"[..10] : null

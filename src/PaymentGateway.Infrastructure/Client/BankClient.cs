@@ -2,9 +2,13 @@
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http.Json;
+
 using Microsoft.Extensions.Logging;
+
 using PaymentGateway.Application.DTOs;
 using PaymentGateway.Application.Interfaces;
+
+using static PaymentGateway.Application.Interfaces.IBankClient;
 
 namespace PaymentGateway.Infrastructure.Client
 {
@@ -21,7 +25,7 @@ namespace PaymentGateway.Infrastructure.Client
 
         }
 
-        public async Task<BankPaymentResponse> Process(PaymentRequestDto request)
+        public async Task<BankAuthorizationResult> Process(PaymentRequestDto request)
         {
             var cardLastFour = request.CardNumber.Substring(request.CardNumber.Length - 4);
 
@@ -61,8 +65,13 @@ namespace PaymentGateway.Infrastructure.Client
                 throw new InvalidOperationException("Bank response was null");
             }
 
-            return bankResponse;
+            return new BankAuthorizationResult
+            {
+                Authorized = bankResponse.Authorized,
+                AuthorizationCode = bankResponse.AuthorizationCode
+            };
+        }
         }
 
     }
-    }
+    
